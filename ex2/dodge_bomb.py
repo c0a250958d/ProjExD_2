@@ -1,8 +1,8 @@
 import os
 import random
 import sys
-import pygame as pg
 import time
+import pygame as pg
 
 
 WIDTH, HEIGHT = 1100, 650   
@@ -15,17 +15,51 @@ DELTA = {
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 def check_bound(rect: pg.Rect) -> tuple[bool, bool]:
-    """
-    引数：こうかとんまたは爆弾のRect
-    戻り値：タプル（横方向判定結果，縦方向判定結果）
-    画面内ならTrue／画面外ならFalse
-    """
     yoko, tate = True, True
     if rect.left < 0 or WIDTH < rect.right:  # 横方向判定
         yoko = False
     if rect.top < 0 or HEIGHT < rect.bottom:  # 縦方向判定
         tate = False
     return yoko, tate
+
+
+def gameover(screen: pg.Surface) -> None:
+    
+    black_screen = pg.Surface((WIDTH, HEIGHT))
+    black_screen.fill((0, 0, 0))
+
+    black_screen.set_alpha(200)
+
+    font = pg.font.Font(None, 80)
+    text = font.render("Game Over", True, (255, 255, 255))
+    text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+    black_screen.blit(text, text_rect)
+
+    kk_img = pg.image.load("fig/8.png")  
+    
+    kk_rect_l = kk_img.get_rect(center=(WIDTH // 2 - 200, HEIGHT // 2))
+    black_screen.blit(kk_img, kk_rect_l)
+    
+    kk_rect_r = kk_img.get_rect(center=(WIDTH // 2 + 200, HEIGHT // 2))
+    black_screen.blit(kk_img, kk_rect_r)
+
+    screen.blit(black_screen, [0, 0])
+
+    pg.display.update()
+    time.sleep(5)
+
+
+def init_bb_imgs() -> tuple[list[pg.Surface], list[int]]:
+    
+    bb_imgs = []
+    for r in range(1, 11):
+        bb_img = pg.Surface((20 * r, 20 * r))
+        pg.draw.circle(bb_img, (255, 0, 0), (10 * r, 10 * r), 10 * r)
+        bb_img.set_colorkey((0, 0, 0)) 
+        bb_imgs.append(bb_img)
+        
+    bb_accs = [a for a in range(1, 11)]
+    return bb_imgs, bb_accs
 
 
 def main():
@@ -35,13 +69,15 @@ def main():
     kk_img = pg.transform.rotozoom(pg.image.load("fig/3.png"), 0, 0.9)
     kk_rct = kk_img.get_rect()
     kk_rct.center = 300, 200
-    bb_img = pg.Surface((20, 20))  # 練習2：空のSurface
-    pg.draw.circle(bb_img, (255, 0, 0), (10, 10), 10)  # 練習2：赤い爆弾
-    bb_img.set_colorkey((0, 0, 0))  # 練習2：四隅の黒い部分を透過する
+
+    # 爆弾リストと加速度リストの生成
+    bb_imgs, bb_accs = init_bb_imgs()
+    bb_img = bb_imgs[0]  # 初期状態の爆弾
     bb_rct = bb_img.get_rect()
     bb_rct.centerx = random.randint(0, WIDTH)  # 横座標用の乱数
     bb_rct.centery = random.randint(0, HEIGHT)  # 縦座標用の乱数
-    vx, vy = +5, +5  # 練習2：爆弾の初期速度
+    vx, vy = +5, +5  # 爆弾の初期速度
+
     clock = pg.time.Clock()
     tmr = 0
     while True:
@@ -50,16 +86,13 @@ def main():
                 return
         screen.blit(bg_img, [0, 0]) 
 
+        # こうかとんと爆弾の衝突判定
+        if kk_rct.colliderect(bb_rct):
+            gameover(screen)
+            return
+
         key_lst = pg.key.get_pressed()
         sum_mv = [0, 0]
-        # if key_lst[pg.K_UP]:
-        #     sum_mv[1] -= 5
-        # if key_lst[pg.K_DOWN]:
-        #     sum_mv[1] += 5
-        # if key_lst[pg.K_LEFT]:
-        #     sum_mv[0] -= 5
-        # if key_lst[pg.K_RIGHT]:
-        #     sum_mv[0] += 5
 
         for k, tpl in DELTA.items():
             if key_lst[k]:
@@ -67,48 +100,32 @@ def main():
                 sum_mv[1] += tpl[1]
 
         kk_rct.move_ip(sum_mv)
-        if check_bound(kk_rct) != (True, True):  # どこからしらはみ出てる
-            kk_rct.move_ip(-sum_mv[0], -sum_mv[1])  # 先程の動きをキャンセルする
+        if check_bound(kk_rct) != (True, True):  
+            kk_rct.move_ip(-sum_mv[0], -sum_mv[1])  
         screen.blit(kk_img, kk_rct)
 
-        bb_rct.move_ip(vx, vy)  # 練習2：爆弾動く
+        idx = min(tmr // 500, 9)
+        avx = vx * bb_accs[idx]
+        avy = vy * bb_accs[idx]
+        bb_img = bb_imgs[idx]
+
+        center = bb_rct.center
+        bb_rct = bb_img.get_rect()
+        bb_rct.center = center
+
+        bb_rct.move_ip(avx, avy)  
         yoko, tate = check_bound(bb_rct)
-        if not yoko:  # yoko == False
+        if not yoko:  
             vx *= -1
-        if not tate:  # tate == False
+        if not tate: 
             vy *= -1
-        screen.blit(bb_img, bb_rct)  # 練習2：爆弾表示
+        screen.blit(bb_img, bb_rct)  
+
         pg.display.update()
         tmr += 1
         clock.tick(50)
 
-def gameover(screen: pg.Surface) -> None:
-    screen = pg.Surface((WIDTH,HEIGHT))
-    screen.fill((0,0,0))
 
-    screen.get_alpha(100)
-
-    font = pg.font.Font(None, 80)
-    text = font.render("Game Over", True, (255, 255, 255))
-    text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
-    screen.blit(text, text_rect)
-
-    kk_img = pg.image.load("fig/8.png")  # 泣いているこうかとん画像
-    
-    # 左側のこうかとん
-    kk_rect_l = kk_img.get_rect(center=(WIDTH // 2 - 200, HEIGHT // 2))
-    screen.blit(kk_img, kk_rect_l)
-    
-    # 右側のこうかとん
-    kk_rect_r = kk_img.get_rect(center=(WIDTH // 2 + 200, HEIGHT // 2))
-    screen.blit(kk_img, kk_rect_r)
-
-    screen.blit(screen, (0, 0))
-
-    pg.display.update()
-    time.sleep(5)
-
-    
 if __name__ == "__main__":
     pg.init()
     main()
