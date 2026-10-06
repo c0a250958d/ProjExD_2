@@ -2,6 +2,7 @@ import os
 import random
 import sys
 import pygame as pg
+import time
 
 
 WIDTH, HEIGHT = 1100, 650   
@@ -81,7 +82,33 @@ def main():
         tmr += 1
         clock.tick(50)
 
+def gameover(screen: pg.Surface) -> None:
+    screen = pg.Surface((WIDTH,HEIGHT))
+    screen.fill((0,0,0))
 
+    screen.get_alpha(100)
+
+    font = pg.font.Font(None, 80)
+    text = font.render("Game Over", True, (255, 255, 255))
+    text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+    screen.blit(text, text_rect)
+
+    kk_img = pg.image.load("fig/8.png")  # 泣いているこうかとん画像
+    
+    # 左側のこうかとん
+    kk_rect_l = kk_img.get_rect(center=(WIDTH // 2 - 200, HEIGHT // 2))
+    screen.blit(kk_img, kk_rect_l)
+    
+    # 右側のこうかとん
+    kk_rect_r = kk_img.get_rect(center=(WIDTH // 2 + 200, HEIGHT // 2))
+    screen.blit(kk_img, kk_rect_r)
+
+    screen.blit(screen, (0, 0))
+
+    pg.display.update()
+    time.sleep(5)
+
+    
 if __name__ == "__main__":
     pg.init()
     main()
